@@ -39,6 +39,7 @@ docker run -d \
   -e "PROXY_KEY=${PROXY_KEY}" \
   -e "AUTOCLAW_PROXY_UPSTREAM_HOST=${UPSTREAM_HOST}" \
   -e "LOG_LEVEL=${LOG_LEVEL}" \
+  -e "JSONL_LOG=true" \
   "$IMAGE_NAME"
 
 echo "容器 $CONTAINER_NAME 已启动，等待服务就绪..."
