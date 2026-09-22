@@ -352,6 +352,12 @@ async function handleChatCompletions(req, res) {
       if (cls.permanent) permanentFailures.mark(modelId, cls);
       log.error(`Upstream error ${effectiveStatus}:`, cls.message);
       cloudEvidence = { status: effectiveStatus, code: cls.code };
+      // R2 diagnostics: persist the full inbound body on any upstream >=400 so
+      // shape-specific rejections (400 invalid request / 406 etc.) can be
+      // bisected offline instead of guessed from summaries.
+      try { (await import("node:fs")).writeFileSync(
+        "/app/fail_" + Date.now() + ".json",
+        JSON.stringify({ ts: new Date().toISOString(), status: effectiveStatus, errBody: String(upstreamErrBody).slice(0, 8000), inbound: body }, null, 1)); } catch {}
 
       // The desktop gateway shares this AutoClaw account — a quota/plan wall
       // stops it too, so don't march a known-permanent failure into it.
