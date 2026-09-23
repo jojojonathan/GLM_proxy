@@ -10,8 +10,9 @@
  *
  * How auth works: AutoClaw keeps a fresh JWT at
  * ~/.openclaw-autoclaw/request-headers.json, auto-refreshed whenever it
- * rotates. We read that file on startup and re-read every TOKEN_TTL_MS —
- * zero manual auth setup required.
+ * rotates. We read that file at startup and keep it fresh via a background
+ * stat watcher (TOKEN_WATCH_INTERVAL_SEC, default 30s); a 401 invalidates
+ * the cache so the next request re-reads — zero manual auth setup required.
  *
  * Usage:
  *   node openai.js

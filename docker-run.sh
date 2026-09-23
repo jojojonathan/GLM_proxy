@@ -10,10 +10,21 @@ PORT=18791                      # 对外监听端口（容器内外一致）
 PROXY_KEY="glmp-wsl-2026"       # 客户端 Bearer key（默认 mewmew，0.0.0.0 下建议改掉）
 UPSTREAM_HOST="autoglm-acceleration-api.zhipuai.cn"   # AutoClaw 1.18.x 云端上游
 LOG_LEVEL="info"
+WATCH_INTERVAL="${TOKEN_WATCH_INTERVAL:-30}"  # token 文件 stat 轮询间隔（秒），可用 -d 覆盖
 # Windows 侧 AutoClaw 数据目录（含 request-headers.json，token 自动轮换靠它热更新）
 AUTCLAW_DATA_DIR="/mnt/c/Users/64264/.openclaw-autoclaw"
 # 容器内挂载点：node 镜像默认 root 用户，os.homedir() 即 /root
 CONTAINER_DATA_DIR="/root/.openclaw-autoclaw"
+
+# ---------- 参数解析：[-d 秒] ----------
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -d) WATCH_INTERVAL="${2:?-d 需要参数（秒）}"; shift 2 ;;
+    -d*) WATCH_INTERVAL="${1#-d}"; shift ;;
+    *) echo "未知参数: $1（用法: $0 [-d 轮询秒数]）" >&2; exit 1 ;;
+  esac
+done
+case "$WATCH_INTERVAL" in (*[!0-9]*|'') echo "错误：轮询间隔需为正整数" >&2; exit 1 ;; esac
 
 if [ ! -f "$AUTCLAW_DATA_DIR/request-headers.json" ]; then
   echo "错误：找不到 $AUTCLAW_DATA_DIR/request-headers.json" >&2
@@ -40,12 +51,13 @@ docker run -d \
   -e "AUTOCLAW_PROXY_UPSTREAM_HOST=${UPSTREAM_HOST}" \
   -e "LOG_LEVEL=${LOG_LEVEL}" \
   -e "JSONL_LOG=true" \
+  -e "TOKEN_WATCH_INTERVAL_SEC=${WATCH_INTERVAL}" \
   "$IMAGE_NAME"
 
 echo "容器 $CONTAINER_NAME 已启动，等待服务就绪..."
 for i in $(seq 1 15); do
   if curl -sf -o /dev/null "http://localhost:${PORT}/v1/models" -H "Authorization: Bearer ${PROXY_KEY}"; then
-    echo "就绪：http://localhost:${PORT}/v1  (PROXY_KEY=${PROXY_KEY})"
+    echo "就绪：http://localhost:${PORT}/v1  (PROXY_KEY=${PROXY_KEY}，token 轮询 ${WATCH_INTERVAL}s)"
     exit 0
   fi
   sleep 1
